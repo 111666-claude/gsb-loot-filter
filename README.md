@@ -1,36 +1,39 @@
 # loot-filter
 
-拾取过滤：按规则优先级判定是否拾取，支持批量判定与结果缓存，只用 Go 标准库。
+拾取过滤：全局规则 + 玩家例外，同层按优先级判定，规则带版本热更新，只用 Go 标准库。
 
 ```
 go test ./...
 go run ./cmd/loot-filter --sample priority
-go run ./cmd/loot-filter --sample default
-go run ./cmd/loot-filter --sample ties
+go run ./cmd/loot-filter --sample player
+go run ./cmd/loot-filter --sample stale
 ```
 
 ## 口径（README 为准）
 
-- **按优先级取第一条匹配**：按 `Priority` 升序（同优先级按 `Pattern` 字典序，再按 `Allow`
-  取 `false` 优先）匹配，第一条命中的规则决定结果。
-- **默认不拾取**：没有任何规则匹配时返回 `false`。
-- **批量判定要省**：`AllowBatch` 允许复用缓存/前缀索引，`Scanned` 不随「掉落数 × 规则数」放大。
-- **不变量**：同一件物品重复判定的结果一致；规则的顺序打乱不改变判定结果。
-- **规模**：1000 条规则、每秒 10 万次判定，单次摊还 O(1)（命中缓存）或 O(前缀深度)，内存 O(规则数)。
+- **生效规则集**：玩家有例外规则就只用例外，否则用全局规则；两层不混用。
+- **同层判定顺序**：优先级升序 → 前缀长度降序 → `deny` 优先，第一条命中决定结果；
+  没有任何规则命中时返回 `false`。
+- **版本单调**：`Update` 只在版本严格大于当前版本时生效（返回 `true`），否则返回 `false`
+  且规则集不变。
+- **缓存一致**：判定结果可以缓存，但 `Update` 与 `SetPlayerRules` 之后旧缓存必须失效。
+- **查询代价**：`Allow` 不许随规则数线性扫描（前缀索引或缓存），
+  `Scanned` 不随「判定次数 × 规则数」放大。
+- **规模**：10 万条规则、每秒 100 万次判定，单次摊还 O(物品名长度)，内存 O(规则数)。
 
 ## 输出契约（不改格式）
 
 ```
 allow=false
-allow=false
-allow=false
-scanned<=2000
+allow=true
+ok=false allow=true
+scanned<=4000
 ```
 
 ## 目录
 
 ```
-filter.go               规则匹配
+filter.go               规则、例外与热更新
 cmd/loot-filter         命令行入口
 filter_test.go          go test 用例
 ```

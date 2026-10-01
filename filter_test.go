@@ -2,30 +2,26 @@ package lootfilter
 
 import "testing"
 
-func TestExactDenyWinsOverPrefixAllow(t *testing.T) {
-	filter := NewFilter([]Rule{
-		{Pattern: "gem", Allow: true, Priority: 2},
-		{Pattern: "gem_ruby", Allow: false, Priority: 1},
-	})
-	if filter.Allow("gem_ruby") {
-		t.Fatal("更高优先级的禁止规则应该生效")
+func TestDefaultDeny(t *testing.T) {
+	if NewFilter(nil).Allow("p", "stone") {
+		t.Fatal("没有规则命中时不该拾取")
 	}
 }
 
 func TestSingleAllowRule(t *testing.T) {
 	filter := NewFilter([]Rule{{Pattern: "gold", Allow: true, Priority: 1}})
-	if !filter.Allow("gold_coin") {
+	if !filter.Allow("p", "gold_coin") {
 		t.Fatal("白名单前缀应该允许拾取")
 	}
 }
 
-func TestBatchCounts(t *testing.T) {
+func TestExactDenyBeatsPrefixAllow(t *testing.T) {
 	filter := NewFilter([]Rule{
-		{Pattern: "gold", Allow: true, Priority: 1},
-		{Pattern: "silver", Allow: false, Priority: 1},
+		{Pattern: "gem", Allow: true, Priority: 2},
+		{Pattern: "gem_ruby", Allow: false, Priority: 1},
 	})
-	if got := filter.AllowBatch([]string{"gold_coin", "silver_coin"}); got != 1 {
-		t.Fatalf("批量判定数不对：%d", got)
+	if filter.Allow("p", "gem_ruby") {
+		t.Fatal("更高优先级的禁止规则应该生效")
 	}
 }
 
